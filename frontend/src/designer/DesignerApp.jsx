@@ -12,6 +12,7 @@ import { snapToGrid } from "./circuitState";
 export default function DesignerApp() {
   const [activeTool, setActiveTool] = useState("select");
   const [propsOpen, setPropsOpen] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
   const graph = useCircuitGraph();
 
   const handleToolChange = useCallback((tool) => {
@@ -147,6 +148,8 @@ export default function DesignerApp() {
         onZoomToFit={() => {}}
         counts={graph.counts}
         warnings={graph.warnings}
+        showLabels={showLabels}
+        onToggleLabels={() => setShowLabels((v) => !v)}
       />
 
       {/* Main layout */}
@@ -177,6 +180,7 @@ export default function DesignerApp() {
               connectedTerminals={graph.connectedTerminals}
               warnings={graph.warnings}
               nodeInfo={graph.nodeInfo}
+              showLabels={showLabels}
             />
           </div>
         </div>

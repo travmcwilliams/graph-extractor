@@ -7,7 +7,7 @@ const TOOL_NAMES = {
   place_ground: "Place Ground",
 };
 
-export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [] }) {
+export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [], showLabels, onToggleLabels }) {
   const { capacitors = 0, junctions = 0, nodes = 0, edges = 0 } = counts;
   const disconnectedWarning = warnings.find((w) => w.type === "disconnected");
   const floatingCount = warnings.filter((w) => w.type === "floating").length;
@@ -33,6 +33,10 @@ export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canU
         <ActionButton label="Clear All" onClick={onClear}>
           <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg>
         </ActionButton>
+        <button onClick={onToggleLabels} title="Toggle Labels"
+          className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${showLabels ? "bg-gray-200 text-gray-700" : "text-gray-400 hover:bg-gray-100"}`}>
+          Labels
+        </button>
       </div>
 
       {/* Warnings */}

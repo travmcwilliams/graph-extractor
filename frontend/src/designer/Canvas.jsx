@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Stage, Layer, Circle, Line, Text, Rect } from "react-konva";
 import CapacitorSymbol from "./symbols/Capacitor";
 import JosephsonJunctionSymbol from "./symbols/JosephsonJunction";
@@ -44,12 +44,33 @@ function NodeLabels({ components, nodeInfo }) {
       nodePositions[nodeIdx].push(pos);
     }
   }
-  return Object.entries(nodePositions).map(([idx, positions]) => {
-    const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
-    const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
+  // Only show at junctions where 2+ terminals meet
+  return Object.entries(nodePositions)
+    .filter(([, positions]) => positions.length >= 2)
+    .map(([idx, positions]) => {
+      const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
+      const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
+      const label = nodeLabels[idx];
+      const w = label.length * 6 + 8;
+      return (
+        <React.Fragment key={`node-${idx}`}>
+          <Rect x={cx + 4} y={cy - 16} width={w} height={14} cornerRadius={3}
+            fill="white" stroke="#d1d5db" strokeWidth={0.5} listening={false} />
+          <Text x={cx + 4} y={cy - 15} width={w} height={14} align="center" verticalAlign="middle"
+            text={label} fontSize={9} fontFamily="system-ui, sans-serif" fontStyle="bold"
+            fill={label === "GND" ? "#166534" : "#6b7280"} listening={false} />
+        </React.Fragment>
+      );
+    });
+}
+
+function ValueLabels({ components }) {
+  return components.map((comp) => {
+    const val = comp.capacitance || comp.ic;
+    if (!val) return null;
     return (
-      <Text key={`node-${idx}`} x={cx + 6} y={cy - 12} text={nodeLabels[idx]}
-        fontSize={9} fontFamily="system-ui, sans-serif" fontStyle="bold" fill="#6b7280" listening={false} />
+      <Text key={`val-${comp.id}`} x={comp.x - 30} y={comp.y + 22} width={60} align="center"
+        text={val} fontSize={9} fontFamily="system-ui, sans-serif" fill="#9ca3af" listening={false} />
     );
   });
 }
@@ -58,7 +79,7 @@ export default function Canvas({
   activeTool, components, wires, selectedId, wireStart,
   onSelect, onComponentMove, onStartMoveComponent, onDropComponent,
   onTerminalClick, onCancelWire, connectedTerminals,
-  warnings = [], nodeInfo,
+  warnings = [], nodeInfo, showLabels = true,
 }) {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -262,7 +283,8 @@ export default function Canvas({
                 onTerminalLeave={handleTerminalLeave} onTerminalClick={handleTerminalClick} />
             );
           })}
-          <NodeLabels components={components} nodeInfo={nodeInfo} />
+          {showLabels && <ValueLabels components={components} />}
+          {showLabels && <NodeLabels components={components} nodeInfo={nodeInfo} />}
         </Layer>
       </Stage>
     </div>

@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { TEMPLATES } from "./templates";
+
 const TOOL_NAMES = {
   select: "Select",
   wire: "Wire Drawing",
@@ -7,7 +10,8 @@ const TOOL_NAMES = {
   place_ground: "Place Ground",
 };
 
-export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [], showLabels, onToggleLabels }) {
+export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [], showLabels, onToggleLabels, onLoadTemplate }) {
+  const [templateOpen, setTemplateOpen] = useState(false);
   const { capacitors = 0, junctions = 0, nodes = 0, edges = 0 } = counts;
   const disconnectedWarning = warnings.find((w) => w.type === "disconnected");
   const floatingCount = warnings.filter((w) => w.type === "floating").length;
@@ -37,6 +41,23 @@ export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canU
           className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${showLabels ? "bg-gray-200 text-gray-700" : "text-gray-400 hover:bg-gray-100"}`}>
           Labels
         </button>
+        <div className="relative">
+          <button onClick={() => setTemplateOpen(!templateOpen)}
+            className="px-1.5 py-0.5 rounded text-[10px] font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+            Templates
+          </button>
+          {templateOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-52">
+              {TEMPLATES.map((t) => (
+                <button key={t.name} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                  onClick={() => { onLoadTemplate?.(t.data); setTemplateOpen(false); }}>
+                  <div className="font-medium text-gray-700">{t.name}</div>
+                  <div className="text-gray-400">{t.description}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Warnings */}

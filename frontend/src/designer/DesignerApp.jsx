@@ -68,6 +68,11 @@ export default function DesignerApp() {
     }
   }, [graph.clear, graph.counts]);
 
+  const handleLoadTemplate = useCallback((templateData) => {
+    if (graph.counts.components > 0 && !window.confirm("Replace current circuit with template?")) return;
+    graph.fromJSON(templateData);
+  }, [graph.fromJSON, graph.counts]);
+
   const handleNewCircuit = useCallback(() => {
     if (graph.counts.components === 0 || window.confirm("Start a new circuit? Current circuit will be cleared.")) {
       graph.newCircuit();
@@ -150,6 +155,7 @@ export default function DesignerApp() {
         warnings={graph.warnings}
         showLabels={showLabels}
         onToggleLabels={() => setShowLabels((v) => !v)}
+        onLoadTemplate={handleLoadTemplate}
       />
 
       {/* Main layout */}

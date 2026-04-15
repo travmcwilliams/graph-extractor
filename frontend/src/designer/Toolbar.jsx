@@ -10,7 +10,7 @@ const TOOL_NAMES = {
   place_ground: "Place Ground",
 };
 
-export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [], showLabels, onToggleLabels, onLoadTemplate }) {
+export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [], showLabels, onToggleLabels, onLoadTemplate, onShare }) {
   const [templateOpen, setTemplateOpen] = useState(false);
   const { capacitors = 0, junctions = 0, nodes = 0, edges = 0 } = counts;
   const disconnectedWarning = warnings.find((w) => w.type === "disconnected");
@@ -58,6 +58,10 @@ export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canU
             </div>
           )}
         </div>
+        <button onClick={onShare} title="Copy share link"
+          className="px-1.5 py-0.5 rounded text-[10px] font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+          Share
+        </button>
       </div>
 
       {/* Warnings */}

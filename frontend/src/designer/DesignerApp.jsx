@@ -8,12 +8,32 @@ import useCircuitGraph from "./useCircuitGraph";
 import { exportAdjacencyCSV, downloadCSV } from "./exportCSV";
 import { exportCircuitJSON, downloadJSON, loadCircuitFile } from "./exportJSON";
 import { snapToGrid } from "./circuitState";
+import { buildShareURL, readCircuitFromHash, clearHash, copyToClipboard } from "./shareLink";
+import Toast from "./Toast";
 
 export default function DesignerApp() {
   const [activeTool, setActiveTool] = useState("select");
   const [propsOpen, setPropsOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
+  const [toast, setToast] = useState(null);
   const graph = useCircuitGraph();
+
+  // Load circuit from URL hash on mount
+  useEffect(() => {
+    const data = readCircuitFromHash();
+    if (data) {
+      graph.fromJSON(data);
+      clearHash();
+      setToast("Circuit loaded from shared link");
+    }
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    const data = graph.toJSON();
+    const url = buildShareURL(data);
+    await copyToClipboard(url);
+    setToast("Link copied to clipboard!");
+  }, [graph.toJSON]);
 
   const handleToolChange = useCallback((tool) => {
     setActiveTool(tool);
@@ -159,6 +179,7 @@ export default function DesignerApp() {
         showLabels={showLabels}
         onToggleLabels={() => setShowLabels((v) => !v)}
         onLoadTemplate={handleLoadTemplate}
+        onShare={handleShare}
       />
 
       {/* Main layout */}
@@ -210,6 +231,8 @@ export default function DesignerApp() {
           onClose={() => setPropsOpen(false)}
         />
       </div>
+
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
       {/* Mobile FAB for export */}
       <FloatingActionButton

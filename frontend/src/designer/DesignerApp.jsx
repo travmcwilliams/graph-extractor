@@ -96,6 +96,9 @@ export default function DesignerApp() {
       if (ctrl && ((e.key === "z" && e.shiftKey) || e.key === "Z")) { e.preventDefault(); graph.redo(); return; }
       if (ctrl && e.key === "s") { e.preventDefault(); downloadJSON(exportCircuitJSON(graph)); return; }
       if (ctrl && e.key === "e") { e.preventDefault(); const csv = exportAdjacencyCSV(graph.adjacency, "binary"); if (csv) downloadCSV(csv); return; }
+      if (ctrl && e.key === "d") { e.preventDefault(); graph.duplicateSelected(); return; }
+      if (ctrl && e.key === "c") { e.preventDefault(); graph.copySelected(); return; }
+      if (ctrl && e.key === "v") { e.preventDefault(); graph.paste(); return; }
       if (ctrl) return;
 
       switch (e.key) {
@@ -176,6 +179,7 @@ export default function DesignerApp() {
               components={graph.components}
               wires={graph.wires}
               selectedId={graph.selectedId}
+              selectedIds={graph.selectedIds}
               wireStart={graph.wireStart}
               onSelect={graph.select}
               onComponentMove={graph.moveComponent}
@@ -201,6 +205,7 @@ export default function DesignerApp() {
           onExportCSV={handleExportCSV}
           onSaveJSON={handleSaveJSON}
           onLoadJSON={handleLoadJSON}
+          onDuplicate={graph.duplicateSelected}
           isOpen={propsOpen}
           onClose={() => setPropsOpen(false)}
         />

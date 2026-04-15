@@ -76,7 +76,7 @@ function ValueLabels({ components }) {
 }
 
 export default function Canvas({
-  activeTool, components, wires, selectedId, wireStart,
+  activeTool, components, wires, selectedId, selectedIds = new Set(), wireStart,
   onSelect, onComponentMove, onStartMoveComponent, onDropComponent,
   onTerminalClick, onCancelWire, connectedTerminals,
   warnings = [], nodeInfo, showLabels = true,
@@ -276,7 +276,7 @@ export default function Canvas({
             if (!Symbol) return null;
             return (
               <Symbol key={comp.id} id={comp.id} x={comp.x} y={comp.y} rotation={comp.rotation} label={comp.label}
-                isSelected={selectedId === comp.id} hoveredTerminal={hoveredTerminal}
+                isSelected={selectedId === comp.id || selectedIds.has(comp.id)} hoveredTerminal={hoveredTerminal}
                 connectedTerminals={connectedTerminals} wireToolActive={activeTool === "wire"}
                 onSelect={onSelect} onDragStart={handleComponentDragStart} onDragMove={handleComponentDragMove}
                 onDragEnd={handleComponentDragEnd} onTerminalEnter={handleTerminalEnter}

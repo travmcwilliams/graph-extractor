@@ -16,6 +16,7 @@ export default function PropertiesPanel({
   onExportCSV,
   onSaveJSON,
   onLoadJSON,
+  onDuplicate,
   isOpen,
   onClose,
 }) {
@@ -28,7 +29,7 @@ export default function PropertiesPanel({
         <PanelContent
           selected={selected} counts={counts} adjacency={adjacency} warnings={warnings}
           onPropertyChange={onPropertyChange} csvMode={csvMode} setCsvMode={setCsvMode}
-          onExportCSV={onExportCSV} onSaveJSON={onSaveJSON} onLoadJSON={onLoadJSON}
+          onExportCSV={onExportCSV} onSaveJSON={onSaveJSON} onLoadJSON={onLoadJSON} onDuplicate={onDuplicate}
         />
       </div>
 
@@ -46,7 +47,7 @@ export default function PropertiesPanel({
             <PanelContent
               selected={selected} counts={counts} adjacency={adjacency} warnings={warnings}
               onPropertyChange={onPropertyChange} csvMode={csvMode} setCsvMode={setCsvMode}
-              onExportCSV={onExportCSV} onSaveJSON={onSaveJSON} onLoadJSON={onLoadJSON}
+              onExportCSV={onExportCSV} onSaveJSON={onSaveJSON} onLoadJSON={onLoadJSON} onDuplicate={onDuplicate}
               noHeader
             />
           </div>
@@ -70,7 +71,7 @@ export default function PropertiesPanel({
             <PanelContent
               selected={selected} counts={counts} adjacency={adjacency} warnings={warnings}
               onPropertyChange={onPropertyChange} csvMode={csvMode} setCsvMode={setCsvMode}
-              onExportCSV={onExportCSV} onSaveJSON={onSaveJSON} onLoadJSON={onLoadJSON}
+              onExportCSV={onExportCSV} onSaveJSON={onSaveJSON} onLoadJSON={onLoadJSON} onDuplicate={onDuplicate}
               noHeader
             />
           </div>
@@ -80,7 +81,7 @@ export default function PropertiesPanel({
   );
 }
 
-function PanelContent({ selected, counts, adjacency, warnings, onPropertyChange, csvMode, setCsvMode, onExportCSV, onSaveJSON, onLoadJSON, noHeader }) {
+function PanelContent({ selected, counts, adjacency, warnings, onPropertyChange, csvMode, setCsvMode, onExportCSV, onSaveJSON, onLoadJSON, onDuplicate, noHeader }) {
   return (
     <>
       {!noHeader && (
@@ -90,7 +91,15 @@ function PanelContent({ selected, counts, adjacency, warnings, onPropertyChange,
       )}
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {selected ? (
-          <SelectedProperties selected={selected} onPropertyChange={onPropertyChange} />
+          <div className="space-y-3">
+            <SelectedProperties selected={selected} onPropertyChange={onPropertyChange} />
+            {selected.type !== "wire" && (
+              <button onClick={onDuplicate}
+                className="w-full px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
+                Duplicate (Ctrl+D)
+              </button>
+            )}
+          </div>
         ) : (
           <CircuitSummary counts={counts} adjacency={adjacency} warnings={warnings} />
         )}

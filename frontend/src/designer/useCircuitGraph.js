@@ -311,12 +311,76 @@ export default function useCircuitGraph() {
   }, [wireStart, startWire, completeWire]);
 
   // ---- Selection ----
-  const select = useCallback((id) => { setSelectedId(id); setWireStart(null); }, []);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const select = useCallback((id, addToSelection = false) => {
+    if (addToSelection && id != null) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+      setSelectedId(id);
+    } else {
+      setSelectedIds(id != null ? new Set([id]) : new Set());
+      setSelectedId(id);
+    }
+    setWireStart(null);
+  }, []);
+
   const deleteSelected = useCallback(() => {
     if (selectedId == null) return;
     if (components.some((c) => c.id === selectedId)) removeComponent(selectedId);
     else removeWire(selectedId);
   }, [selectedId, components, removeComponent, removeWire]);
+
+  // ---- Duplicate / Copy / Paste ----
+  const clipboard = useRef([]);
+
+  const duplicateSelected = useCallback(() => {
+    const ids = selectedIds.size > 0 ? selectedIds : (selectedId != null ? new Set([selectedId]) : new Set());
+    const toDuplicate = components.filter((c) => ids.has(c.id));
+    if (toDuplicate.length === 0) return;
+    pushUndo();
+    const newIds = [];
+    const newComps = toDuplicate.map((c) => {
+      const id = nextId();
+      newIds.push(id);
+      return { ...c, id, x: c.x + 40, y: c.y + 40, label: autoLabel(c.type, [...components, ...newIds.map(() => null)]) };
+    });
+    // Fix labels: compute them sequentially
+    const allComps = [...components];
+    for (const nc of newComps) {
+      nc.label = autoLabel(nc.type, allComps);
+      allComps.push(nc);
+    }
+    setComponents((prev) => [...prev, ...newComps]);
+    setSelectedIds(new Set(newIds));
+    setSelectedId(newIds[0]);
+  }, [selectedIds, selectedId, components, wires]);
+
+  const copySelected = useCallback(() => {
+    const ids = selectedIds.size > 0 ? selectedIds : (selectedId != null ? new Set([selectedId]) : new Set());
+    clipboard.current = components.filter((c) => ids.has(c.id)).map((c) => ({ ...c }));
+  }, [selectedIds, selectedId, components]);
+
+  const paste = useCallback(() => {
+    if (clipboard.current.length === 0) return;
+    pushUndo();
+    const allComps = [...components];
+    const newComps = clipboard.current.map((c) => {
+      const id = nextId();
+      const comp = { ...c, id, x: c.x + 60, y: c.y + 60 };
+      comp.label = autoLabel(comp.type, allComps);
+      allComps.push(comp);
+      return comp;
+    });
+    setComponents((prev) => [...prev, ...newComps]);
+    const newIds = newComps.map((c) => c.id);
+    setSelectedIds(new Set(newIds));
+    setSelectedId(newIds[0]);
+    // Shift clipboard for next paste
+    clipboard.current = clipboard.current.map((c) => ({ ...c, x: c.x + 60, y: c.y + 60 }));
+  }, [components, wires]);
 
   // ---- Undo / Redo ----
   const undo = useCallback(() => {
@@ -401,12 +465,12 @@ export default function useCircuitGraph() {
   }), [componentCounts, nodeInfo, adjacency]);
 
   return {
-    components, wires, selectedId, selected, wireStart, connectedTerminals,
+    components, wires, selectedId, selectedIds, selected, wireStart, connectedTerminals,
     circuitName, setCircuitName, lastSaved, dirty,
     counts, adjacency, nodeInfo, warnings,
     addComponent, removeComponent, moveComponent, startMoveComponent, updateComponent, rotateComponent,
     addWire, removeWire, handleTerminalClick, cancelWire,
-    select, deleteSelected,
+    select, deleteSelected, duplicateSelected, copySelected, paste,
     undo, redo, canUndo, canRedo,
     clear, newCircuit, toJSON, fromJSON,
   };

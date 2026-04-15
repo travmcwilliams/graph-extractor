@@ -148,6 +148,18 @@ function SelectedProperties({ selected, onPropertyChange }) {
       </div>
     );
   }
+  if (selected.type === "ground") {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-block w-2 h-2 rounded-full bg-green-600" />
+          <span className="text-sm font-medium text-gray-800">Ground</span>
+        </div>
+        <Field label="Label" value={selected.label || ""} placeholder="GND" onChange={(v) => onPropertyChange(selected.id, "label", v)} />
+        <ReadonlyField label="Position" value={`(${selected.x}, ${selected.y})`} />
+      </div>
+    );
+  }
   if (selected.type === "wire") {
     return (
       <div className="space-y-3">

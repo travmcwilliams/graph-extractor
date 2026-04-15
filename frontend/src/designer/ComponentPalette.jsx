@@ -27,6 +27,14 @@ const ICONS = {
       <line x1="15" y1="5" x2="9" y2="19" strokeWidth="2.5" />
     </svg>
   ),
+  ground: (
+    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="12" y1="3" x2="12" y2="10" />
+      <line x1="4" y1="10" x2="20" y2="10" strokeWidth="2.5" />
+      <line x1="7" y1="15" x2="17" y2="15" strokeWidth="2.5" />
+      <line x1="10" y1="20" x2="14" y2="20" strokeWidth="2.5" />
+    </svg>
+  ),
   delete: (
     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
@@ -47,6 +55,7 @@ const BUTTONS = [
   { id: "wire", label: "Wire", shortcut: "W", icon: ICONS.wire },
   { id: "capacitor", toolId: "place_capacitor", label: "Capacitor", shortcut: "C", icon: ICONS.capacitor, countKey: "capacitors", badgeColor: "bg-blue-500" },
   { id: "josephson_junction", toolId: "place_jj", label: "Junction", shortcut: "J", icon: ICONS.josephson_junction, countKey: "junctions", badgeColor: "bg-red-600" },
+  { id: "ground", toolId: "place_ground", label: "Ground", shortcut: "G", icon: ICONS.ground, countKey: "grounds", badgeColor: "bg-green-700" },
   { id: "delete", label: "Delete", shortcut: "", icon: ICONS.delete },
   { id: "undo", label: "Undo", shortcut: "", icon: ICONS.undo },
 ];
@@ -56,7 +65,7 @@ function toolIdFor(btn) {
 }
 
 function isActive(btn, activeTool) {
-  return activeTool === toolIdFor(btn) || (btn.id === "capacitor" && activeTool === "place_capacitor") || (btn.id === "josephson_junction" && activeTool === "place_jj");
+  return activeTool === toolIdFor(btn) || (btn.id === "capacitor" && activeTool === "place_capacitor") || (btn.id === "josephson_junction" && activeTool === "place_jj") || (btn.id === "ground" && activeTool === "place_ground");
 }
 
 export default function ComponentPalette({ activeTool, onToolChange, onUndo, counts = {} }) {
@@ -117,7 +126,7 @@ function DesktopButton({ btn, active, count, onClick }) {
   return (
     <button
       onClick={onClick}
-      draggable={btn.id === "capacitor" || btn.id === "josephson_junction"}
+      draggable={btn.id === "capacitor" || btn.id === "josephson_junction" || btn.id === "ground"}
       onDragStart={(e) => e.dataTransfer.setData("component-type", btn.id)}
       title={`${btn.label}${btn.shortcut ? ` (${btn.shortcut})` : ""}`}
       className={`relative flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all

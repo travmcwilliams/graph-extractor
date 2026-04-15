@@ -4,6 +4,7 @@ const TOOL_NAMES = {
   delete: "Delete",
   place_capacitor: "Place Capacitor",
   place_jj: "Place Junction",
+  place_ground: "Place Ground",
 };
 
 export default function Toolbar({ activeTool, onToolChange, onUndo, onRedo, canUndo, canRedo, onClear, onZoomToFit, counts, warnings = [] }) {

@@ -26,6 +26,9 @@ const TERMINAL_DEFS = {
     { side: "left", dx: -30, dy: 0 },
     { side: "right", dx: 30, dy: 0 },
   ],
+  ground: [
+    { side: "top", dx: 0, dy: -20 },
+  ],
 };
 
 export function getTerminals(compType) {

@@ -12,7 +12,11 @@ function nextId() {
 
 // ---- Auto-label ----
 function autoLabel(type, components) {
-  const prefix = type === "capacitor" ? "C" : "JJ";
+  const prefix = type === "capacitor" ? "C" : type === "ground" ? "GND" : "JJ";
+  if (type === "ground") {
+    const count = components.filter((c) => c.type === "ground").length;
+    return count === 0 ? "GND" : `GND${count + 1}`;
+  }
   const nums = components
     .filter((c) => c.type === type)
     .map((c) => {
@@ -68,8 +72,25 @@ function computeNodes(components, wires) {
     connectedSet.add(`${w.targetComp}:${w.targetSide}`);
   }
 
+  // Identify ground roots — any terminal belonging to a ground component
+  const groundRoots = new Set();
+  for (const comp of components) {
+    if (comp.type === "ground") {
+      for (const t of getTerminals(comp.type)) {
+        const tid = `${comp.id}:${t.side}`;
+        if (connectedSet.has(tid)) groundRoots.add(uf.find(terminalIndex[tid]));
+      }
+    }
+  }
+
   const rootToNode = {};
   let nodeCount = 0;
+  // Reserve index 0 for GND if any ground roots exist
+  if (groundRoots.size > 0) {
+    for (const gr of groundRoots) rootToNode[gr] = 0;
+    nodeCount = 1;
+  }
+
   const terminalToNode = {};
   for (const tid of terminalIds) {
     if (!connectedSet.has(tid)) continue;
@@ -78,7 +99,10 @@ function computeNodes(components, wires) {
     terminalToNode[tid] = rootToNode[root];
   }
 
-  return { nodeCount, terminalToNode, nodeLabels: Array.from({ length: nodeCount }, (_, i) => `N${i}`) };
+  const nodeLabels = Array.from({ length: nodeCount }, (_, i) =>
+    groundRoots.size > 0 && i === 0 ? "GND" : `N${i}`,
+  );
+  return { nodeCount, terminalToNode, nodeLabels };
 }
 
 // ---- Adjacency matrix ----
@@ -364,7 +388,8 @@ export default function useCircuitGraph() {
   const componentCounts = useMemo(() => {
     const capacitors = components.filter((c) => c.type === "capacitor").length;
     const junctions = components.filter((c) => c.type === "josephson_junction").length;
-    return { capacitors, junctions, total: components.length };
+    const grounds = components.filter((c) => c.type === "ground").length;
+    return { capacitors, junctions, grounds, total: components.length };
   }, [components]);
 
   const counts = useMemo(() => ({

@@ -2,6 +2,7 @@ import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Stage, Layer, Circle, Line, Text, Rect } from "react-konva";
 import CapacitorSymbol from "./symbols/Capacitor";
 import JosephsonJunctionSymbol from "./symbols/JosephsonJunction";
+import GroundSymbol from "./symbols/Ground";
 import WireSymbol from "./symbols/Wire";
 import { snapToGrid, terminalWorldPos, getTerminals } from "./circuitState";
 
@@ -12,6 +13,7 @@ const MAX_SCALE = 5;
 const SYMBOL_MAP = {
   capacitor: CapacitorSymbol,
   josephson_junction: JosephsonJunctionSymbol,
+  ground: GroundSymbol,
 };
 
 function GridDots({ width, height, scale, offsetX, offsetY }) {

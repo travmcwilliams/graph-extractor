@@ -26,10 +26,10 @@ export default function DesignerApp() {
 
   // On mobile, tapping a "place" tool places at center of canvas
   useEffect(() => {
-    if (activeTool === "place_capacitor" || activeTool === "place_jj") {
+    if (activeTool === "place_capacitor" || activeTool === "place_jj" || activeTool === "place_ground") {
       const isMobile = window.innerWidth < 768;
       if (isMobile) {
-        const type = activeTool === "place_capacitor" ? "capacitor" : "josephson_junction";
+        const type = activeTool === "place_capacitor" ? "capacitor" : activeTool === "place_ground" ? "ground" : "josephson_junction";
         const x = snapToGrid(Math.round(window.innerWidth / 2 / 20) * 20);
         const y = snapToGrid(Math.round(window.innerHeight / 2 / 20) * 20);
         graph.addComponent(type, x, y);
@@ -95,6 +95,7 @@ export default function DesignerApp() {
       switch (e.key) {
         case "c": case "C": setActiveTool("place_capacitor"); graph.cancelWire(); break;
         case "j": case "J": setActiveTool("place_jj"); graph.cancelWire(); break;
+        case "g": case "G": setActiveTool("place_ground"); graph.cancelWire(); break;
         case "w": case "W": setActiveTool("wire"); graph.cancelWire(); break;
         case "v": case "V": setActiveTool("select"); graph.cancelWire(); break;
         case "Escape":

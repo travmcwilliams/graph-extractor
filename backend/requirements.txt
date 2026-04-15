@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+opencv-python-headless
+numpy
+networkx
+scikit-image
+easyocr
+ultralytics
+click
+pytest
+matplotlib
+Pillow

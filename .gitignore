@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# Node
+node_modules/
+frontend/dist/
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models
+backend/models/*.pt
+backend/models/*.onnx
+
+# Generated test images
+backend/samples/test_circuit.png
+
+# Pytest
+.pytest_cache/
+backend/.pytest_cache/
+
+# Training
+training/datasets/
+training/runs/

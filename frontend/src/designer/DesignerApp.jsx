@@ -212,6 +212,10 @@ export default function DesignerApp() {
               warnings={graph.warnings}
               nodeInfo={graph.nodeInfo}
               showLabels={showLabels}
+              onDeleteComponent={graph.removeComponent}
+              onDuplicateComponent={graph.duplicateSelected}
+              onRotateComponent={graph.rotateComponent}
+              onOpenProperties={() => setPropsOpen(true)}
             />
           </div>
         </div>

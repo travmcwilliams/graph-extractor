@@ -5,6 +5,7 @@ import JosephsonJunctionSymbol from "./symbols/JosephsonJunction";
 import GroundSymbol from "./symbols/Ground";
 import WireSymbol from "./symbols/Wire";
 import { snapToGrid, terminalWorldPos, getTerminals } from "./circuitState";
+import ContextMenu from "./ContextMenu";
 
 const GRID_SIZE = 20;
 const MIN_SCALE = 0.1;
@@ -79,6 +80,7 @@ export default function Canvas({
   onSelect, onComponentMove, onStartMoveComponent, onDropComponent,
   onTerminalClick, onCancelWire, connectedTerminals,
   warnings = [], nodeInfo, showLabels = true,
+  onDeleteComponent, onDuplicateComponent, onRotateComponent, onOpenProperties,
 }) {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -88,6 +90,8 @@ export default function Canvas({
   const [hoveredTerminal, setHoveredTerminal] = useState(null);
   const [mousePos, setMousePos] = useState(null);
   const lastPinchDist = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, compId }
+  const longPressTimer = useRef(null);
 
   const floatingIds = useMemo(() =>
     new Set(warnings.filter((w) => w.type === "floating").map((w) => w.compId)),
@@ -172,7 +176,52 @@ export default function Canvas({
     setMousePos({ x: (pointer.x - stage.x()) / stage.scaleX(), y: (pointer.y - stage.y()) / stage.scaleY() });
   }, [wireStart]);
 
-  const handleComponentDragStart = useCallback(() => { onStartMoveComponent?.(); }, [onStartMoveComponent]);
+  // Long-press detection for context menu
+  const handleComponentTouchStart = useCallback((compId, e) => {
+    longPressTimer.current = setTimeout(() => {
+      const touch = e.evt?.touches?.[0] || e.evt;
+      if (touch) {
+        setContextMenu({ x: touch.clientX, y: touch.clientY, compId });
+        onSelect?.(compId);
+      }
+    }, 500);
+  }, [onSelect]);
+
+  const handleComponentTouchEnd = useCallback(() => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  }, []);
+
+  // Right-click context menu (desktop)
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    const stage = stageRef.current;
+    if (!stage) return;
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    // Find component under pointer
+    const canvasX = (pointer.x - stage.x()) / stage.scaleX();
+    const canvasY = (pointer.y - stage.y()) / stage.scaleY();
+    const comp = components.find((c) => Math.abs(c.x - canvasX) < 35 && Math.abs(c.y - canvasY) < 25);
+    if (comp) {
+      setContextMenu({ x: e.clientX, y: e.clientY, compId: comp.id });
+      onSelect?.(comp.id);
+    }
+  }, [components, onSelect]);
+
+  const handleContextAction = useCallback((action) => {
+    if (!contextMenu) return;
+    switch (action) {
+      case "delete": onDeleteComponent?.(contextMenu.compId); break;
+      case "duplicate": onDuplicateComponent?.(); break;
+      case "rotate": onRotateComponent?.(contextMenu.compId); break;
+      case "properties": onOpenProperties?.(); break;
+    }
+  }, [contextMenu, onDeleteComponent, onDuplicateComponent, onRotateComponent, onOpenProperties]);
+
+  const handleComponentDragStart = useCallback((id) => {
+    handleComponentTouchEnd(); // Cancel long-press if drag starts
+    onStartMoveComponent?.();
+  }, [onStartMoveComponent, handleComponentTouchEnd]);
   const handleComponentDragMove = useCallback((id, e) => {
     const node = e.target; node.x(snapToGrid(node.x())); node.y(snapToGrid(node.y()));
   }, []);
@@ -244,8 +293,18 @@ export default function Canvas({
   const cursor = activeTool === "wire" || wireStart ? "crosshair" : activeTool === "delete" ? "not-allowed" : "default";
   const isEmpty = components.length === 0;
 
+  // Compute screen position of delete X button for selected component
+  const selectedComp = selectedId ? components.find((c) => c.id === selectedId) : null;
+  let deleteButtonPos = null;
+  if (selectedComp && !wireStart) {
+    deleteButtonPos = {
+      x: selectedComp.x * scale + position.x + 30 * scale,
+      y: selectedComp.y * scale + position.y - 25 * scale,
+    };
+  }
+
   return (
-    <div ref={containerRef} className="flex-1 overflow-hidden bg-white relative touch-none" style={{ cursor }} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div ref={containerRef} className="flex-1 overflow-hidden bg-white relative touch-none" style={{ cursor }} onDragOver={handleDragOver} onDrop={handleDrop} onContextMenu={handleContextMenu}>
       {/* Wire drawing banner */}
       {wireStart && (
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200">
@@ -308,13 +367,41 @@ export default function Canvas({
                 getTerminalState={getTerminalState}
                 onSelect={onSelect} onDragStart={handleComponentDragStart} onDragMove={handleComponentDragMove}
                 onDragEnd={handleComponentDragEnd} onTerminalEnter={handleTerminalEnter}
-                onTerminalLeave={handleTerminalLeave} onTerminalClick={handleTerminalClick} />
+                onTerminalLeave={handleTerminalLeave} onTerminalClick={handleTerminalClick}
+                onTouchStart={(e) => handleComponentTouchStart(comp.id, e)}
+                onTouchEnd={handleComponentTouchEnd} />
             );
           })}
           {showLabels && <ValueLabels components={components} />}
           {showLabels && <NodeLabels components={components} nodeInfo={nodeInfo} />}
         </Layer>
       </Stage>
+
+      {/* Delete X button on selected component */}
+      {deleteButtonPos && selectedComp && selectedComp.type !== "wire" && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDeleteComponent?.(selectedComp.id); }}
+          className="absolute z-20 w-7 h-7 flex items-center justify-center
+                     bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md
+                     transition-colors"
+          style={{ left: deleteButtonPos.x, top: deleteButtonPos.y, transform: "translate(-50%, -50%)" }}
+          title="Delete"
+        >
+          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onAction={handleContextAction}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

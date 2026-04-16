@@ -26,6 +26,8 @@ export default function JosephsonJunction({
   onTerminalLeave,
   getTerminalState,
   onTerminalClick,
+  onTouchStart,
+  onTouchEnd,
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -50,6 +52,8 @@ export default function JosephsonJunction({
       onDragEnd={(e) => onDragEnd?.(id, e)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {/* Selection highlight */}
       {isSelected && (

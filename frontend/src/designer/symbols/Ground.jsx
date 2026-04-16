@@ -12,6 +12,7 @@ export default function Ground({
   hoveredTerminal, connectedTerminals = [], wireToolActive,
   onSelect, onDragStart, onDragMove, onDragEnd,
   onTerminalEnter, onTerminalLeave, onTerminalClick, getTerminalState,
+  onTouchStart, onTouchEnd,
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -33,6 +34,8 @@ export default function Ground({
       onDragEnd={(e) => onDragEnd?.(id, e)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {isSelected && (
         <Rect x={-W / 2 - 4} y={-H / 2 - 4} width={W + 8} height={H + 8}

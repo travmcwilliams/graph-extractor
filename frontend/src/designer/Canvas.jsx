@@ -81,6 +81,7 @@ export default function Canvas({
   onTerminalClick, onCancelWire, connectedTerminals,
   warnings = [], nodeInfo, showLabels = true,
   onDeleteComponent, onDuplicateComponent, onRotateComponent, onOpenProperties,
+  onCanvasPlace,
 }) {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -154,18 +155,38 @@ export default function Canvas({
     }
   }, []);
 
-  const handleTouchEnd = useCallback(() => { lastPinchDist.current = null; }, []);
+  const justPinched = useRef(false);
+  const handleTouchEnd = useCallback(() => {
+    if (lastPinchDist.current != null) justPinched.current = true;
+    lastPinchDist.current = null;
+    // Reset pinch flag after a short delay so the next single tap works
+    setTimeout(() => { justPinched.current = false; }, 300);
+  }, []);
 
   const handleDragEnd = useCallback((e) => {
     if (e.target === stageRef.current) setPosition({ x: e.target.x(), y: e.target.y() });
   }, []);
 
+  const isPlaceTool = activeTool?.startsWith("place_");
+
   const handleStageClick = useCallback((e) => {
-    if (e.target === stageRef.current) {
-      if (wireStart) onCancelWire?.();
-      else onSelect?.(null);
+    if (e.target !== stageRef.current) return;
+    // Guard: don't place if a pinch gesture just ended
+    if (justPinched.current) return;
+
+    if (isPlaceTool && onCanvasPlace) {
+      const stage = stageRef.current;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+      const x = snapToGrid((pointer.x - stage.x()) / stage.scaleX());
+      const y = snapToGrid((pointer.y - stage.y()) / stage.scaleY());
+      onCanvasPlace(x, y);
+    } else if (wireStart) {
+      onCancelWire?.();
+    } else {
+      onSelect?.(null);
     }
-  }, [onSelect, wireStart, onCancelWire]);
+  }, [onSelect, wireStart, onCancelWire, isPlaceTool, onCanvasPlace]);
 
   const handleMouseMove = useCallback((e) => {
     if (!wireStart) { setMousePos(null); return; }
@@ -290,7 +311,7 @@ export default function Canvas({
     return "default";
   }
 
-  const cursor = activeTool === "wire" || wireStart ? "crosshair" : activeTool === "delete" ? "not-allowed" : "default";
+  const cursor = isPlaceTool ? "cell" : activeTool === "wire" || wireStart ? "crosshair" : activeTool === "delete" ? "not-allowed" : "default";
   const isEmpty = components.length === 0;
 
   // Compute screen position of delete X button for selected component
@@ -316,6 +337,13 @@ export default function Canvas({
         </div>
       )}
 
+      {/* Placement mode banner (mobile) */}
+      {isPlaceTool && !wireStart && (
+        <div className="absolute top-0 left-0 right-0 z-20 flex md:hidden items-center justify-center gap-3 px-4 py-2 bg-green-50 border-b border-green-200">
+          <span className="text-xs text-green-700 font-medium">Tap canvas to place component</span>
+        </div>
+      )}
+
       {isEmpty && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-8">
           <div className="text-center">
@@ -334,7 +362,7 @@ export default function Canvas({
         scaleY={scale}
         x={position.x}
         y={position.y}
-        draggable={activeTool === "select" && !wireStart}
+        draggable={activeTool === "select" && !wireStart && !isPlaceTool}
         onWheel={handleWheel}
         onDragEnd={handleDragEnd}
         onClick={handleStageClick}

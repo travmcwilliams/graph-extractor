@@ -11,12 +11,26 @@ import { snapToGrid } from "./circuitState";
 import { buildShareURL, readCircuitFromHash, clearHash, copyToClipboard } from "./shareLink";
 import Toast from "./Toast";
 
+const PLACE_TOOLS = {
+  place_capacitor: "capacitor",
+  place_jj: "josephson_junction",
+  place_ground: "ground",
+};
+
+const PLACE_LABELS = {
+  place_capacitor: "Capacitor",
+  place_jj: "Junction",
+  place_ground: "Ground",
+};
+
 export default function DesignerApp() {
   const [activeTool, setActiveTool] = useState("select");
   const [propsOpen, setPropsOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [toast, setToast] = useState(null);
   const graph = useCircuitGraph();
+
+  const isPlaceTool = activeTool in PLACE_TOOLS;
 
   // Load circuit from URL hash on mount
   useEffect(() => {
@@ -36,28 +50,35 @@ export default function DesignerApp() {
   }, [graph.toJSON]);
 
   const handleToolChange = useCallback((tool) => {
+    // If tapping the same place tool again, toggle back to select
+    if (tool === activeTool && tool in PLACE_TOOLS) {
+      setActiveTool("select");
+      setToast(null);
+      graph.cancelWire();
+      return;
+    }
     setActiveTool(tool);
     graph.cancelWire();
-  }, [graph.cancelWire]);
+    // Show toast for placement mode
+    if (tool in PLACE_LABELS) {
+      setToast(`Tap canvas to place ${PLACE_LABELS[tool]}`);
+    }
+  }, [activeTool, graph.cancelWire]);
 
+  // Desktop drag-and-drop from palette
   const handleDropComponent = useCallback((type, x, y) => {
     graph.addComponent(type, x, y);
     setActiveTool("select");
+    setToast(null);
   }, [graph.addComponent]);
 
-  // On mobile, tapping a "place" tool places at center of canvas
-  useEffect(() => {
-    if (activeTool === "place_capacitor" || activeTool === "place_jj" || activeTool === "place_ground") {
-      const isMobile = window.innerWidth < 768;
-      if (isMobile) {
-        const type = activeTool === "place_capacitor" ? "capacitor" : activeTool === "place_ground" ? "ground" : "josephson_junction";
-        const x = snapToGrid(Math.round(window.innerWidth / 2 / 20) * 20);
-        const y = snapToGrid(Math.round(window.innerHeight / 2 / 20) * 20);
-        graph.addComponent(type, x, y);
-        setActiveTool("select");
-      }
-    }
-  }, [activeTool]);
+  // Tap-to-place on canvas (mobile and desktop)
+  const handleCanvasPlace = useCallback((x, y) => {
+    if (!isPlaceTool) return;
+    const type = PLACE_TOOLS[activeTool];
+    graph.addComponent(type, x, y);
+    // Stay in placement mode so user can place multiples
+  }, [activeTool, isPlaceTool, graph.addComponent]);
 
   const handlePropertyChange = useCallback((id, key, value) => {
     graph.updateComponent(id, { [key]: value });
@@ -122,13 +143,14 @@ export default function DesignerApp() {
       if (ctrl) return;
 
       switch (e.key) {
-        case "c": case "C": setActiveTool("place_capacitor"); graph.cancelWire(); break;
-        case "j": case "J": setActiveTool("place_jj"); graph.cancelWire(); break;
-        case "g": case "G": setActiveTool("place_ground"); graph.cancelWire(); break;
-        case "w": case "W": setActiveTool("wire"); graph.cancelWire(); break;
-        case "v": case "V": setActiveTool("select"); graph.cancelWire(); break;
+        case "c": case "C": setActiveTool("place_capacitor"); graph.cancelWire(); setToast("Tap canvas to place Capacitor"); break;
+        case "j": case "J": setActiveTool("place_jj"); graph.cancelWire(); setToast("Tap canvas to place Junction"); break;
+        case "g": case "G": setActiveTool("place_ground"); graph.cancelWire(); setToast("Tap canvas to place Ground"); break;
+        case "w": case "W": setActiveTool("wire"); graph.cancelWire(); setToast(null); break;
+        case "v": case "V": setActiveTool("select"); graph.cancelWire(); setToast(null); break;
         case "Escape":
-          if (graph.wireStart) graph.cancelWire();
+          if (isPlaceTool) { setActiveTool("select"); setToast(null); }
+          else if (graph.wireStart) graph.cancelWire();
           else { setActiveTool("select"); graph.select(null); }
           break;
         case "r": case "R": if (graph.selectedId != null) graph.rotateComponent(graph.selectedId); break;
@@ -137,7 +159,7 @@ export default function DesignerApp() {
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [graph]);
+  }, [graph, isPlaceTool]);
 
   // Prevent Safari gesturestart (browser-level pinch zoom)
   useEffect(() => {
@@ -168,7 +190,6 @@ export default function DesignerApp() {
             {graph.dirty ? "Unsaved" : "Saved"}
           </span>
           <button onClick={handleNewCircuit} className="text-gray-400 hover:text-white transition-colors">New</button>
-          {/* Tablet: toggle properties drawer */}
           <button onClick={() => setPropsOpen(!propsOpen)}
             className="hidden md:inline-block lg:hidden text-gray-400 hover:text-white transition-colors">
             {propsOpen ? "Close" : "Props"}
@@ -195,7 +216,6 @@ export default function DesignerApp() {
 
       {/* Main layout */}
       <div className="flex flex-1 min-h-0">
-        {/* Desktop/tablet left palette (mobile version is position:fixed in ComponentPalette) */}
         <ComponentPalette
           activeTool={activeTool}
           onToolChange={handleToolChange}
@@ -203,7 +223,6 @@ export default function DesignerApp() {
           counts={graph.counts}
         />
 
-        {/* Canvas — add bottom padding on mobile for bottom bar */}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 min-h-0 pb-16 md:pb-0">
             <Canvas
@@ -217,6 +236,7 @@ export default function DesignerApp() {
               onComponentMove={graph.moveComponent}
               onStartMoveComponent={graph.startMoveComponent}
               onDropComponent={handleDropComponent}
+              onCanvasPlace={handleCanvasPlace}
               onTerminalClick={graph.handleTerminalClick}
               onCancelWire={graph.cancelWire}
               connectedTerminals={graph.connectedTerminals}
@@ -231,7 +251,6 @@ export default function DesignerApp() {
           </div>
         </div>
 
-        {/* Properties: desktop static, tablet/mobile overlay */}
         <PropertiesPanel
           selected={graph.selected}
           counts={graph.counts}
@@ -249,7 +268,6 @@ export default function DesignerApp() {
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
-      {/* Mobile FAB for export */}
       <FloatingActionButton
         onExportCSV={handleExportCSV}
         onSaveJSON={handleSaveJSON}

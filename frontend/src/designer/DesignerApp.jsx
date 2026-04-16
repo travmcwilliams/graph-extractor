@@ -139,6 +139,17 @@ export default function DesignerApp() {
     return () => window.removeEventListener("keydown", handle);
   }, [graph]);
 
+  // Prevent Safari gesturestart (browser-level pinch zoom)
+  useEffect(() => {
+    const prevent = (e) => e.preventDefault();
+    document.addEventListener("gesturestart", prevent, { passive: false });
+    document.addEventListener("gesturechange", prevent, { passive: false });
+    return () => {
+      document.removeEventListener("gesturestart", prevent);
+      document.removeEventListener("gesturechange", prevent);
+    };
+  }, []);
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-100">
       {/* Header */}

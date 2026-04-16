@@ -26,13 +26,25 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Prevent bounce/overscroll on mobile */
+/*
+ * Prevent browser-level pinch-to-zoom on the app shell.
+ * touch-action: manipulation allows taps and vertical scroll
+ * but blocks pinch-zoom and double-tap-zoom on all UI chrome.
+ * The canvas element overrides this with touch-action: none
+ * so Konva handles its own pinch-to-zoom.
+ */
 html, body {
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* Ensure touch-none works for canvas */
+/* Canvas element: block ALL touch gestures so Konva handles them */
 .touch-none {
   touch-action: none;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button, a, input, select, [role="button"] {
+  touch-action: manipulation;
 }

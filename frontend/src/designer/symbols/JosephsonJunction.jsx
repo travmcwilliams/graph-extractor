@@ -24,11 +24,13 @@ export default function JosephsonJunction({
   onDragEnd,
   onTerminalEnter,
   onTerminalLeave,
+  getTerminalState,
   onTerminalClick,
 }) {
   const [hovered, setHovered] = useState(false);
 
   function terminalState(side) {
+    if (getTerminalState) return getTerminalState(id, side);
     if (hoveredTerminal === `${id}:${side}`) return wireToolActive ? "dragging-wire" : "hover";
     if (connectedTerminals.includes(`${id}:${side}`)) return "connected";
     if (hovered) return "hover";

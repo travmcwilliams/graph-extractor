@@ -44,7 +44,6 @@ function NodeLabels({ components, nodeInfo }) {
       nodePositions[nodeIdx].push(pos);
     }
   }
-  // Only show at junctions where 2+ terminals meet
   return Object.entries(nodePositions)
     .filter(([, positions]) => positions.length >= 2)
     .map(([idx, positions]) => {
@@ -94,6 +93,12 @@ export default function Canvas({
     new Set(warnings.filter((w) => w.type === "floating").map((w) => w.compId)),
   [warnings]);
 
+  // Build set of terminal IDs belonging to the wireStart component (to exclude from targets)
+  const wireStartTerminalIds = useMemo(() => {
+    if (!wireStart) return new Set();
+    return new Set([`${wireStart.compId}:${wireStart.side}`]);
+  }, [wireStart]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -105,7 +110,6 @@ export default function Canvas({
     return () => observer.disconnect();
   }, []);
 
-  // Scroll-wheel zoom
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();
     const stage = stageRef.current;
@@ -120,7 +124,6 @@ export default function Canvas({
     setPosition({ x: pointer.x - mousePointTo.x * newScale, y: pointer.y - mousePointTo.y * newScale });
   }, []);
 
-  // Pinch-to-zoom (touch)
   const handleTouchMove = useCallback((e) => {
     const touches = e.evt.touches;
     if (touches.length === 2) {
@@ -128,7 +131,6 @@ export default function Canvas({
       const dx = touches[0].clientX - touches[1].clientX;
       const dy = touches[0].clientY - touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-
       if (lastPinchDist.current != null) {
         const stage = stageRef.current;
         if (!stage) return;
@@ -148,9 +150,7 @@ export default function Canvas({
     }
   }, []);
 
-  const handleTouchEnd = useCallback(() => {
-    lastPinchDist.current = null;
-  }, []);
+  const handleTouchEnd = useCallback(() => { lastPinchDist.current = null; }, []);
 
   const handleDragEnd = useCallback((e) => {
     if (e.target === stageRef.current) setPosition({ x: e.target.x(), y: e.target.y() });
@@ -182,9 +182,12 @@ export default function Canvas({
 
   const handleTerminalEnter = useCallback((compId, side) => setHoveredTerminal(`${compId}:${side}`), []);
   const handleTerminalLeave = useCallback(() => setHoveredTerminal(null), []);
+
+  // Terminal click: on mobile, always handle (auto-enter wire mode); on desktop, only in wire mode
   const handleTerminalClick = useCallback((compId, side) => {
-    if (activeTool === "wire") onTerminalClick?.(compId, side);
-  }, [activeTool, onTerminalClick]);
+    // Always allow terminal clicks to start/complete wires — the hook handles the state machine
+    onTerminalClick?.(compId, side);
+  }, [onTerminalClick]);
 
   const handleDragOver = useCallback((e) => e.preventDefault(), []);
   const handleDrop = useCallback((e) => {
@@ -209,33 +212,57 @@ export default function Canvas({
     return [src.x, src.y, tgt.x, tgt.y];
   }
 
+  // Wire preview: follow mouse on desktop, or point toward canvas center on mobile
   let wirePreviewPoints = null;
-  if (wireStart && mousePos) {
+  if (wireStart) {
     const comp = components.find((c) => c.id === wireStart.compId);
     if (comp) {
       const t = getTerminals(comp.type).find((t) => t.side === wireStart.side);
-      if (t) { const src = terminalWorldPos(comp, t); wirePreviewPoints = [src.x, src.y, mousePos.x, mousePos.y]; }
+      if (t) {
+        const src = terminalWorldPos(comp, t);
+        if (mousePos) {
+          wirePreviewPoints = [src.x, src.y, mousePos.x, mousePos.y];
+        } else {
+          // Static short line pointing outward from terminal (for mobile where no mousemove)
+          wirePreviewPoints = [src.x, src.y, src.x + 30, src.y];
+        }
+      }
     }
   }
 
-  const cursor = activeTool === "wire" ? "crosshair" : activeTool === "delete" ? "not-allowed" : "default";
+  // Determine terminal state: during wire drawing, show non-start terminals as "target"
+  function getTerminalState(compId, side) {
+    const tid = `${compId}:${side}`;
+    if (hoveredTerminal === tid) {
+      return wireStart ? "dragging-wire" : "hover";
+    }
+    if (wireStart && !wireStartTerminalIds.has(tid)) return "target";
+    if (connectedTerminals.includes(tid)) return "connected";
+    return "default";
+  }
+
+  const cursor = activeTool === "wire" || wireStart ? "crosshair" : activeTool === "delete" ? "not-allowed" : "default";
   const isEmpty = components.length === 0;
 
   return (
     <div ref={containerRef} className="flex-1 overflow-hidden bg-white relative touch-none" style={{ cursor }} onDragOver={handleDragOver} onDrop={handleDrop}>
-      {/* Empty state */}
+      {/* Wire drawing banner */}
+      {wireStart && (
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200">
+          <span className="text-xs text-blue-700 font-medium">Tap another terminal to complete the wire</span>
+          <button onClick={onCancelWire}
+            className="px-2 py-0.5 text-xs font-medium text-blue-600 bg-white border border-blue-300 rounded hover:bg-blue-50">
+            Cancel
+          </button>
+        </div>
+      )}
+
       {isEmpty && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-8">
           <div className="text-center">
-            <div className="text-gray-300 text-base md:text-lg font-medium hidden md:block">
-              Drag a component from the panel to get started
-            </div>
-            <div className="text-gray-300 text-base font-medium md:hidden">
-              Tap a component button below to place it
-            </div>
-            <div className="text-gray-300 text-sm mt-1 hidden md:block">
-              or press C for capacitor, J for Josephson junction
-            </div>
+            <div className="text-gray-300 text-base md:text-lg font-medium hidden md:block">Drag a component from the panel to get started</div>
+            <div className="text-gray-300 text-base font-medium md:hidden">Tap a component button below to place it</div>
+            <div className="text-gray-300 text-sm mt-1 hidden md:block">or press C for capacitor, J for Josephson junction</div>
           </div>
         </div>
       )}
@@ -277,7 +304,8 @@ export default function Canvas({
             return (
               <Symbol key={comp.id} id={comp.id} x={comp.x} y={comp.y} rotation={comp.rotation} label={comp.label}
                 isSelected={selectedId === comp.id || selectedIds.has(comp.id)} hoveredTerminal={hoveredTerminal}
-                connectedTerminals={connectedTerminals} wireToolActive={activeTool === "wire"}
+                connectedTerminals={connectedTerminals} wireToolActive={activeTool === "wire" || !!wireStart}
+                getTerminalState={getTerminalState}
                 onSelect={onSelect} onDragStart={handleComponentDragStart} onDragMove={handleComponentDragMove}
                 onDragEnd={handleComponentDragEnd} onTerminalEnter={handleTerminalEnter}
                 onTerminalLeave={handleTerminalLeave} onTerminalClick={handleTerminalClick} />

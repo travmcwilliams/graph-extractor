@@ -11,11 +11,12 @@ export default function Ground({
   id, x, y, rotation = 0, label, isSelected,
   hoveredTerminal, connectedTerminals = [], wireToolActive,
   onSelect, onDragStart, onDragMove, onDragEnd,
-  onTerminalEnter, onTerminalLeave, onTerminalClick,
+  onTerminalEnter, onTerminalLeave, onTerminalClick, getTerminalState,
 }) {
   const [hovered, setHovered] = useState(false);
 
   function terminalState(side) {
+    if (getTerminalState) return getTerminalState(id, side);
     if (hoveredTerminal === `${id}:${side}`) return wireToolActive ? "dragging-wire" : "hover";
     if (connectedTerminals.includes(`${id}:${side}`)) return "connected";
     if (hovered) return "hover";

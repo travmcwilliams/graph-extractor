@@ -4,7 +4,8 @@ const STATES = {
   default: { radius: 4, fill: "transparent", stroke: "#9ca3af", strokeWidth: 1.5 },
   hover: { radius: 6, fill: "#dbeafe", stroke: "#3b82f6", strokeWidth: 2 },
   connected: { radius: 4, fill: "#22c55e", stroke: "#16a34a", strokeWidth: 1.5 },
-  "dragging-wire": { radius: 6, fill: "#fed7aa", stroke: "#f97316", strokeWidth: 2 },
+  "dragging-wire": { radius: 8, fill: "#fed7aa", stroke: "#f97316", strokeWidth: 2.5 },
+  target: { radius: 8, fill: "#dbeafe", stroke: "#3b82f6", strokeWidth: 2 },
 };
 
 export default function Terminal({
@@ -29,7 +30,7 @@ export default function Terminal({
       onMouseLeave={onMouseLeave}
       onClick={onClick}
       onTap={onClick}
-      hitStrokeWidth={14}
+      hitStrokeWidth={24}
     />
   );
 }

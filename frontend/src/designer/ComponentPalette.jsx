@@ -68,7 +68,19 @@ function isActive(btn, activeTool) {
   return activeTool === toolIdFor(btn) || (btn.id === "capacitor" && activeTool === "place_capacitor") || (btn.id === "josephson_junction" && activeTool === "place_jj") || (btn.id === "ground" && activeTool === "place_ground");
 }
 
-export default function ComponentPalette({ activeTool, onToolChange, onUndo, counts = {} }) {
+export default function ComponentPalette({ activeTool, onToolChange, onUndo, onDelete, counts = {} }) {
+  const handleButtonClick = (btn) => {
+    if (btn.id === "undo") {
+      onUndo?.();
+      return;
+    }
+    if (btn.id === "delete") {
+      onDelete?.();
+      return;
+    }
+    onToolChange(toolIdFor(btn));
+  };
+
   return (
     <>
       {/* Desktop: left sidebar with 2-col grid */}
@@ -81,7 +93,7 @@ export default function ComponentPalette({ activeTool, onToolChange, onUndo, cou
                 btn={btn}
                 active={isActive(btn, activeTool)}
                 count={btn.countKey ? counts[btn.countKey] : null}
-                onClick={() => btn.id === "undo" ? onUndo?.() : onToolChange(toolIdFor(btn))}
+                onClick={() => handleButtonClick(btn)}
               />
             ))}
           </div>
@@ -99,7 +111,7 @@ export default function ComponentPalette({ activeTool, onToolChange, onUndo, cou
             btn={btn}
             active={isActive(btn, activeTool)}
             count={btn.countKey ? counts[btn.countKey] : null}
-            onClick={() => btn.id === "undo" ? onUndo?.() : onToolChange(toolIdFor(btn))}
+            onClick={() => handleButtonClick(btn)}
           />
         ))}
       </div>
@@ -113,7 +125,7 @@ export default function ComponentPalette({ activeTool, onToolChange, onUndo, cou
               btn={btn}
               active={isActive(btn, activeTool)}
               count={btn.countKey ? counts[btn.countKey] : null}
-              onClick={() => btn.id === "undo" ? onUndo?.() : onToolChange(toolIdFor(btn))}
+              onClick={() => handleButtonClick(btn)}
             />
           ))}
         </div>

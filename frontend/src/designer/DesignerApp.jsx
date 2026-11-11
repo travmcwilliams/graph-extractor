@@ -62,8 +62,47 @@ export default function DesignerApp() {
     // Show toast for placement mode
     if (tool in PLACE_LABELS) {
       setToast(`Tap canvas to place ${PLACE_LABELS[tool]}`);
+    } else {
+      setToast(null);
     }
   }, [activeTool, graph.cancelWire]);
+
+  const handleDeleteAction = useCallback(() => {
+    graph.cancelWire();
+    setPropsOpen(false);
+
+    if (graph.selectedId != null) {
+      graph.deleteSelected();
+      setActiveTool("select");
+      setToast("Deleted selection");
+      return;
+    }
+
+    if (activeTool === "delete") {
+      setActiveTool("select");
+      setToast(null);
+      return;
+    }
+
+    setActiveTool("delete");
+    setToast("Tap a component or wire to delete");
+  }, [activeTool, graph.cancelWire, graph.deleteSelected, graph.selectedId]);
+
+  const handleCancelTransientTool = useCallback(() => {
+    setActiveTool("select");
+    setToast(null);
+    graph.cancelWire();
+  }, [graph.cancelWire]);
+
+  const handleDeleteComponent = useCallback((id) => {
+    graph.removeComponent(id);
+    setPropsOpen(false);
+  }, [graph.removeComponent]);
+
+  const handleDeleteWire = useCallback((id) => {
+    graph.removeWire(id);
+    setPropsOpen(false);
+  }, [graph.removeWire]);
 
   // Desktop drag-and-drop from palette
   const handleDropComponent = useCallback((type, x, y) => {
@@ -120,12 +159,14 @@ export default function DesignerApp() {
     }
   }, [graph.newCircuit, graph.counts]);
 
-  // Open properties when something is selected on mobile
+  // Open properties when something is selected on mobile, but do not interrupt
+  // placement, wiring, or delete flows. Keyed on selectedId only: `graph.selected`
+  // changes identity on every move/edit, which would reopen a panel the user closed.
   useEffect(() => {
-    if (graph.selected && window.innerWidth < 1024) {
+    if (graph.selected && window.innerWidth < 1024 && !isPlaceTool && activeTool !== "wire" && activeTool !== "delete" && !graph.wireStart) {
       setPropsOpen(true);
     }
-  }, [graph.selectedId]);
+  }, [graph.selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Global keyboard shortcuts ----
   useEffect(() => {
@@ -149,7 +190,7 @@ export default function DesignerApp() {
         case "w": case "W": setActiveTool("wire"); graph.cancelWire(); setToast(null); break;
         case "v": case "V": setActiveTool("select"); graph.cancelWire(); setToast(null); break;
         case "Escape":
-          if (isPlaceTool) { setActiveTool("select"); setToast(null); }
+          if (isPlaceTool || activeTool === "delete") { setActiveTool("select"); setToast(null); }
           else if (graph.wireStart) graph.cancelWire();
           else { setActiveTool("select"); graph.select(null); }
           break;
@@ -159,7 +200,7 @@ export default function DesignerApp() {
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [graph, isPlaceTool]);
+  }, [graph, isPlaceTool, activeTool]);
 
   // Prevent Safari gesturestart (browser-level pinch zoom)
   useEffect(() => {
@@ -220,6 +261,7 @@ export default function DesignerApp() {
           activeTool={activeTool}
           onToolChange={handleToolChange}
           onUndo={graph.undo}
+          onDelete={handleDeleteAction}
           counts={graph.counts}
         />
 
@@ -239,11 +281,15 @@ export default function DesignerApp() {
               onCanvasPlace={handleCanvasPlace}
               onTerminalClick={graph.handleTerminalClick}
               onCancelWire={graph.cancelWire}
+              onCancelDelete={handleCancelTransientTool}
               connectedTerminals={graph.connectedTerminals}
               warnings={graph.warnings}
               nodeInfo={graph.nodeInfo}
               showLabels={showLabels}
-              onDeleteComponent={graph.removeComponent}
+              placementLabel={PLACE_LABELS[activeTool]}
+              onFinishPlacement={handleCancelTransientTool}
+              onDeleteComponent={handleDeleteComponent}
+              onDeleteWire={handleDeleteWire}
               onDuplicateComponent={graph.duplicateSelected}
               onRotateComponent={graph.rotateComponent}
               onOpenProperties={() => setPropsOpen(true)}

@@ -13,6 +13,7 @@ export default function Ground({
   onSelect, onDragStart, onDragMove, onDragEnd,
   onTerminalEnter, onTerminalLeave, onTerminalClick, getTerminalState,
   onTouchStart, onTouchEnd,
+  draggable = true,
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -26,7 +27,7 @@ export default function Ground({
 
   return (
     <Group
-      x={x} y={y} rotation={rotation} draggable
+      x={x} y={y} rotation={rotation} draggable={draggable}
       onClick={(e) => { e.cancelBubble = true; onSelect?.(id); }}
       onTap={(e) => { e.cancelBubble = true; onSelect?.(id); }}
       onDragStart={() => onDragStart?.(id)}

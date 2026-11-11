@@ -30,6 +30,7 @@ export default function Capacitor({
   onTerminalClick,
   onTouchStart,
   onTouchEnd,
+  draggable = true,
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -46,7 +47,7 @@ export default function Capacitor({
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={(e) => { e.cancelBubble = true; onSelect?.(id); }}
       onTap={(e) => { e.cancelBubble = true; onSelect?.(id); }}
       onDragStart={() => onDragStart?.(id)}

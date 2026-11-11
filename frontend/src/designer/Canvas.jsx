@@ -4,7 +4,7 @@ import CapacitorSymbol from "./symbols/Capacitor";
 import JosephsonJunctionSymbol from "./symbols/JosephsonJunction";
 import GroundSymbol from "./symbols/Ground";
 import WireSymbol from "./symbols/Wire";
-import { snapToGrid, terminalWorldPos, getTerminals } from "./circuitState";
+import { snapToGrid, terminalWorldPos, getTerminals, wireRoute, routeMidpoint } from "./circuitState";
 import ContextMenu from "./ContextMenu";
 
 const GRID_SIZE = 20;
@@ -80,8 +80,9 @@ export default function Canvas({
   onSelect, onComponentMove, onStartMoveComponent, onDropComponent,
   onTerminalClick, onCancelWire, connectedTerminals,
   warnings = [], nodeInfo, showLabels = true,
-  onDeleteComponent, onDuplicateComponent, onRotateComponent, onOpenProperties,
-  onCanvasPlace,
+  onDeleteComponent, onDeleteWire, onDuplicateComponent, onRotateComponent, onOpenProperties,
+  onCanvasPlace, onFinishPlacement, placementLabel,
+  onCancelDelete,
 }) {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -168,6 +169,7 @@ export default function Canvas({
   }, []);
 
   const isPlaceTool = activeTool?.startsWith("place_");
+  const isDeleteTool = activeTool === "delete";
 
   const handleStageClick = useCallback((e) => {
     if (e.target !== stageRef.current) return;
@@ -199,6 +201,7 @@ export default function Canvas({
 
   // Long-press detection for context menu
   const handleComponentTouchStart = useCallback((compId, e) => {
+    if (isDeleteTool) return;
     longPressTimer.current = setTimeout(() => {
       const touch = e.evt?.touches?.[0] || e.evt;
       if (touch) {
@@ -206,7 +209,7 @@ export default function Canvas({
         onSelect?.(compId);
       }
     }, 500);
-  }, [onSelect]);
+  }, [isDeleteTool, onSelect]);
 
   const handleComponentTouchEnd = useCallback(() => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
@@ -255,9 +258,30 @@ export default function Canvas({
 
   // Terminal click: on mobile, always handle (auto-enter wire mode); on desktop, only in wire mode
   const handleTerminalClick = useCallback((compId, side) => {
-    // Always allow terminal clicks to start/complete wires — the hook handles the state machine
+    if (isDeleteTool) {
+      onDeleteComponent?.(compId);
+      return;
+    }
+    if (isPlaceTool) return;
+    // Always allow terminal clicks to start/complete wires; the hook handles the state machine.
     onTerminalClick?.(compId, side);
-  }, [onTerminalClick]);
+  }, [isDeleteTool, isPlaceTool, onDeleteComponent, onTerminalClick]);
+
+  const handleComponentSelect = useCallback((id) => {
+    if (isDeleteTool) {
+      onDeleteComponent?.(id);
+      return;
+    }
+    onSelect?.(id);
+  }, [isDeleteTool, onDeleteComponent, onSelect]);
+
+  const handleWireSelect = useCallback((id) => {
+    if (isDeleteTool) {
+      onDeleteWire?.(id);
+      return;
+    }
+    onSelect?.(id);
+  }, [isDeleteTool, onDeleteWire, onSelect]);
 
   const handleDragOver = useCallback((e) => e.preventDefault(), []);
   const handleDrop = useCallback((e) => {
@@ -311,17 +335,30 @@ export default function Canvas({
     return "default";
   }
 
-  const cursor = isPlaceTool ? "cell" : activeTool === "wire" || wireStart ? "crosshair" : activeTool === "delete" ? "not-allowed" : "default";
+  const cursor = isPlaceTool ? "cell" : activeTool === "wire" || wireStart ? "crosshair" : isDeleteTool ? "pointer" : "default";
   const isEmpty = components.length === 0;
 
-  // Compute screen position of delete X button for selected component
+  // Compute screen position of delete X button for the selected item.
   const selectedComp = selectedId ? components.find((c) => c.id === selectedId) : null;
+  const selectedWire = selectedId ? wires.find((w) => w.id === selectedId) : null;
   let deleteButtonPos = null;
+  let deleteButtonKind = null;
   if (selectedComp && !wireStart) {
     deleteButtonPos = {
       x: selectedComp.x * scale + position.x + 30 * scale,
       y: selectedComp.y * scale + position.y - 25 * scale,
     };
+    deleteButtonKind = "component";
+  } else if (selectedWire && !wireStart) {
+    const pts = wirePoints(selectedWire);
+    if (pts) {
+      const mid = routeMidpoint(wireRoute(pts));
+      deleteButtonPos = {
+        x: mid.x * scale + position.x,
+        y: mid.y * scale + position.y,
+      };
+      deleteButtonKind = "wire";
+    }
   }
 
   return (
@@ -337,10 +374,25 @@ export default function Canvas({
         </div>
       )}
 
+      {/* Delete mode banner */}
+      {isDeleteTool && !wireStart && (
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-3 px-4 py-2 bg-red-50 border-b border-red-200">
+          <span className="text-xs text-red-700 font-medium">Tap a component or wire to delete</span>
+          <button onClick={onCancelDelete}
+            className="px-2 py-0.5 text-xs font-medium text-red-600 bg-white border border-red-300 rounded hover:bg-red-50">
+            Done
+          </button>
+        </div>
+      )}
+
       {/* Placement mode banner (mobile) */}
       {isPlaceTool && !wireStart && (
         <div className="absolute top-0 left-0 right-0 z-20 flex md:hidden items-center justify-center gap-3 px-4 py-2 bg-green-50 border-b border-green-200">
-          <span className="text-xs text-green-700 font-medium">Tap canvas to place component</span>
+          <span className="text-xs text-green-700 font-medium">Tap canvas to place {placementLabel || "component"}</span>
+          <button onClick={onFinishPlacement}
+            className="px-2 py-0.5 text-xs font-medium text-green-600 bg-white border border-green-300 rounded hover:bg-green-50">
+            Done
+          </button>
         </div>
       )}
 
@@ -348,7 +400,7 @@ export default function Canvas({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-8">
           <div className="text-center">
             <div className="text-gray-300 text-base md:text-lg font-medium hidden md:block">Drag a component from the panel to get started</div>
-            <div className="text-gray-300 text-base font-medium md:hidden">Tap a component button below to place it</div>
+            <div className="text-gray-300 text-base font-medium md:hidden">Choose a component below, then tap the canvas</div>
             <div className="text-gray-300 text-sm mt-1 hidden md:block">or press C for capacitor, J for Josephson junction</div>
           </div>
         </div>
@@ -378,7 +430,7 @@ export default function Canvas({
           {wires.map((w) => {
             const pts = wirePoints(w);
             if (!pts) return null;
-            return <WireSymbol key={w.id} id={w.id} points={pts} isSelected={selectedId === w.id} onSelect={onSelect} />;
+            return <WireSymbol key={w.id} id={w.id} points={pts} isSelected={selectedId === w.id} onSelect={handleWireSelect} />;
           })}
           {wirePreviewPoints && <Line points={wirePreviewPoints} stroke="#93c5fd" strokeWidth={2} dash={[6, 4]} listening={false} />}
           {components.filter((c) => floatingIds.has(c.id)).map((comp) => (
@@ -393,9 +445,10 @@ export default function Canvas({
                 isSelected={selectedId === comp.id || selectedIds.has(comp.id)} hoveredTerminal={hoveredTerminal}
                 connectedTerminals={connectedTerminals} wireToolActive={activeTool === "wire" || !!wireStart}
                 getTerminalState={getTerminalState}
-                onSelect={onSelect} onDragStart={handleComponentDragStart} onDragMove={handleComponentDragMove}
+                onSelect={handleComponentSelect} onDragStart={handleComponentDragStart} onDragMove={handleComponentDragMove}
                 onDragEnd={handleComponentDragEnd} onTerminalEnter={handleTerminalEnter}
                 onTerminalLeave={handleTerminalLeave} onTerminalClick={handleTerminalClick}
+                draggable={activeTool === "select" && !wireStart}
                 onTouchStart={(e) => handleComponentTouchStart(comp.id, e)}
                 onTouchEnd={handleComponentTouchEnd} />
             );
@@ -405,11 +458,15 @@ export default function Canvas({
         </Layer>
       </Stage>
 
-      {/* Delete X button on selected component */}
-      {deleteButtonPos && selectedComp && selectedComp.type !== "wire" && (
+      {/* Delete X button on selected item */}
+      {deleteButtonPos && deleteButtonKind && (
         <button
-          onClick={(e) => { e.stopPropagation(); onDeleteComponent?.(selectedComp.id); }}
-          className="absolute z-20 w-7 h-7 flex items-center justify-center
+          onClick={(e) => {
+            e.stopPropagation();
+            if (deleteButtonKind === "component") onDeleteComponent?.(selectedComp.id);
+            else onDeleteWire?.(selectedWire.id);
+          }}
+          className="absolute z-20 w-8 h-8 md:w-7 md:h-7 flex items-center justify-center
                      bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md
                      transition-colors"
           style={{ left: deleteButtonPos.x, top: deleteButtonPos.y, transform: "translate(-50%, -50%)" }}
